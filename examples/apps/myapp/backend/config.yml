@@ -1,0 +1,21 @@
+# Backend component configuration
+
+resources:
+  test:
+    replicas: 2
+    cpu_request: "100m"
+    cpu_limit: "500m"
+    memory_request: "256Mi"
+    memory_limit: "512Mi"
+
+  prod:
+    replicas: 3
+    cpu_request: "200m"
+    cpu_limit: "1000m"
+    memory_request: "512Mi"
+    memory_limit: "1Gi"
+
+# Backend-specific configuration
+port: 8080
+health_check_path: /health
+readiness_check_path: /ready

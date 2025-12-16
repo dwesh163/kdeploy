@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ app.name }}-backend
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app.name }}
+    component: backend
+    version: {{ app.version }}
+    environment: {{ env }}
+spec:
+  replicas: {{ component.resources[env].replicas }}
+  selector:
+    matchLabels:
+      app: {{ app.name }}
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: {{ app.name }}
+        component: backend
+        version: {{ app.version }}
+    spec:
+      containers:
+      - name: backend
+        image: {{ config.image.registry }}/{{ app.name }}-backend:{{ app.version }}
+        imagePullPolicy: {{ config.image.pull_policy }}
+        ports:
+        - containerPort: {{ component.port }}
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "{{ env }}"
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ app.name }}-backend-secrets
+              key: database-password
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ app.name }}-backend-secrets
+              key: api-key
+        resources:
+          requests:
+            cpu: {{ component.resources[env].cpu_request }}
+            memory: {{ component.resources[env].memory_request }}
+          limits:
+            cpu: {{ component.resources[env].cpu_limit }}
+            memory: {{ component.resources[env].memory_limit }}
+        livenessProbe:
+          httpGet:
+            path: {{ component.health_check_path }}
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: {{ component.readiness_check_path }}
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
