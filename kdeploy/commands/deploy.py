@@ -241,15 +241,16 @@ def _deploy_single_app(
             )
             stats[status] = stats.get(status, 0) + 1
 
-            if status == 'created':
+            if status == 'unchanged':
+                # Use dim/info for unchanged (like deploy.sh)
+                print_info(f"{rel_path} (unchanged)")
+            elif status == 'created':
                 print_success(f"{rel_path} (created)")
             elif status == 'configured':
                 print_success(f"{rel_path} (configured)")
                 # Check if we need rollout restart
                 if 'configmap' in str(rel_path).lower() or 'secret' in str(rel_path).lower():
                     needs_rollout = True
-            elif status == 'unchanged':
-                print_info(f"{rel_path} (unchanged)")
             else:
                 print_error(f"{rel_path}: {message}")
 
