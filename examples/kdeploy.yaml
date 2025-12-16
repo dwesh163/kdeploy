@@ -1,0 +1,43 @@
+# kdeploy configuration file
+# This file should be placed at the root of your ops directory
+
+# Secrets file path (relative to this config file)
+secrets_file: secrets.yml
+
+# Kubeconfig file path (can be overridden by KUBECONFIG env var)
+kubeconfig: /path/to/kubeconfig.yml
+
+# Applications directory
+apps_dir: apps
+
+# Build output directory
+build_dir: build
+
+# Environment configurations
+environments:
+  # Test environment
+  test:
+    namespace: myapp-test
+    cluster_url: https://api.test.k8s.example.com:6443  # Optional, for OpenShift
+    # Environment-specific variables can be added here
+
+  # Production environment
+  prod:
+    namespace: myapp-prod
+    cluster_url: https://api.prod.k8s.example.com:6443  # Optional, for OpenShift
+
+  # Staging environment (optional)
+  staging:
+    namespace: myapp-staging
+
+# Global variables available to all templates
+global:
+  organization: "My Organization"
+  contact_email: "ops@example.com"
+  monitoring_enabled: true
+
+# Plugin configuration (optional)
+plugins:
+  enabled:
+    - slack_notifications
+    - prometheus_metrics
