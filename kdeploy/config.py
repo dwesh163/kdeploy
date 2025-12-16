@@ -156,9 +156,9 @@ class Config:
     def get_kubeconfig(self) -> Optional[str]:
         """Get kubeconfig path from config or environment."""
         kubeconfig = (
-            get_env_var("KUBECONFIG") or
             self.get_env_config("kubeconfig") or
-            self.get("kubeconfig")
+            self.get("kubeconfig") or
+            get_env_var("KUBECONFIG")
         )
         return kubeconfig
 
