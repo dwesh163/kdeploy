@@ -11,7 +11,7 @@ requires-python = ">=3.8"
 license = {text = "MIT"}
 keywords = ["kubernetes", "deployment", "devops", "cli"]
 authors = [
-    {username = "dwesh163"}
+    {name = "dwesh163"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
