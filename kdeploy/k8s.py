@@ -190,6 +190,8 @@ class KubernetesClient:
                     api_client = client.BatchV1Api(self._api_client)
                 elif api_group == 'networking.k8s.io':
                     api_client = client.NetworkingV1Api(self._api_client)
+                elif api_group == 'policy':
+                    api_client = client.PolicyV1Api(self._api_client)
                 else:
                     # Use dynamic client for custom resources
                     return self._apply_custom_resource(manifest, namespace, dry_run)
@@ -202,37 +204,51 @@ class KubernetesClient:
 
             # Apply resource
             if exists:
+                # Check if resource actually changed by comparing specs
+                changed = self._has_spec_changed(api_client, kind, name, namespace, manifest)
+                if not changed:
+                    return "unchanged", "unchanged"
+
                 # Update existing resource
+                result = None
                 if kind == 'Deployment':
-                    api_client.patch_namespaced_deployment(
+                    result = api_client.patch_namespaced_deployment(
                         name=name,
                         namespace=namespace,
                         body=manifest,
                         dry_run=dry_run_param
                     )
                 elif kind == 'Service':
-                    api_client.patch_namespaced_service(
+                    result = api_client.patch_namespaced_service(
                         name=name,
                         namespace=namespace,
                         body=manifest,
                         dry_run=dry_run_param
                     )
                 elif kind == 'ConfigMap':
-                    api_client.patch_namespaced_config_map(
+                    result = api_client.patch_namespaced_config_map(
                         name=name,
                         namespace=namespace,
                         body=manifest,
                         dry_run=dry_run_param
                     )
                 elif kind == 'Secret':
-                    api_client.patch_namespaced_secret(
+                    result = api_client.patch_namespaced_secret(
                         name=name,
                         namespace=namespace,
                         body=manifest,
                         dry_run=dry_run_param
                     )
                 elif kind == 'Ingress':
-                    api_client.patch_namespaced_ingress(
+                    result = api_client.patch_namespaced_ingress(
+                        name=name,
+                        namespace=namespace,
+                        body=manifest,
+                        dry_run=dry_run_param
+                    )
+                elif kind == 'PodDisruptionBudget':
+                    policy_v1 = client.PolicyV1Api(self._api_client)
+                    result = policy_v1.patch_namespaced_pod_disruption_budget(
                         name=name,
                         namespace=namespace,
                         body=manifest,
@@ -274,6 +290,13 @@ class KubernetesClient:
                         body=manifest,
                         dry_run=dry_run_param
                     )
+                elif kind == 'PodDisruptionBudget':
+                    policy_v1 = client.PolicyV1Api(self._api_client)
+                    policy_v1.create_namespaced_pod_disruption_budget(
+                        namespace=namespace,
+                        body=manifest,
+                        dry_run=dry_run_param
+                    )
                 else:
                     return "error", f"Unsupported resource kind for create: {kind}"
 
@@ -306,6 +329,9 @@ class KubernetesClient:
                 api_client.read_namespaced_secret(name=name, namespace=namespace)
             elif kind == 'Ingress':
                 api_client.read_namespaced_ingress(name=name, namespace=namespace)
+            elif kind == 'PodDisruptionBudget':
+                policy_v1 = client.PolicyV1Api(self._api_client)
+                policy_v1.read_namespaced_pod_disruption_budget(name=name, namespace=namespace)
             else:
                 return False
             return True
@@ -313,6 +339,111 @@ class KubernetesClient:
             if e.status == 404:
                 return False
             raise
+
+    def _has_spec_changed(
+        self,
+        api_client: Any,
+        kind: str,
+        name: str,
+        namespace: str,
+        new_manifest: Dict[str, Any]
+    ) -> bool:
+        """Check if resource spec has actually changed.
+
+        Returns:
+            True if resource needs updating, False if unchanged
+        """
+        try:
+            # Read current resource
+            current = None
+            if kind == 'Deployment':
+                current = api_client.read_namespaced_deployment(name=name, namespace=namespace)
+            elif kind == 'Service':
+                current = api_client.read_namespaced_service(name=name, namespace=namespace)
+            elif kind == 'ConfigMap':
+                current = api_client.read_namespaced_config_map(name=name, namespace=namespace)
+            elif kind == 'Secret':
+                current = api_client.read_namespaced_secret(name=name, namespace=namespace)
+            elif kind == 'Ingress':
+                current = api_client.read_namespaced_ingress(name=name, namespace=namespace)
+            elif kind == 'PodDisruptionBudget':
+                # Special handling for PDB - use policy/v1 API
+                policy_v1 = client.PolicyV1Api(self._api_client)
+                current = policy_v1.read_namespaced_pod_disruption_budget(name=name, namespace=namespace)
+            else:
+                # Unknown kind, assume changed
+                return True
+
+            if not current:
+                return True
+
+            # Convert current resource to dict
+            current_dict = api_client.api_client.sanitize_for_serialization(current)
+
+            # For ConfigMaps and Secrets, compare data
+            if kind in ['ConfigMap', 'Secret']:
+                new_data = new_manifest.get('data', {})
+                current_data = current_dict.get('data', {})
+                return new_data != current_data
+
+            # For other resources, compare specs
+            new_spec = new_manifest.get('spec', {})
+            current_spec = current_dict.get('spec', {})
+
+            # Compare only fields that exist in new_spec (ignore extra K8s fields)
+            return not self._specs_equal(new_spec, current_spec)
+
+        except ApiException as e:
+            if e.status == 404:
+                return True
+            # If error, assume changed to be safe
+            return True
+        except Exception:
+            # If comparison fails, assume changed to be safe
+            return True
+
+    def _specs_equal(self, new_spec: Any, current_spec: Any) -> bool:
+        """Compare specs recursively, checking only fields present in new_spec.
+
+        Returns:
+            True if specs are equal (current has all values from new), False otherwise
+        """
+        # Handle None
+        if new_spec is None and current_spec is None:
+            return True
+        if new_spec is None or current_spec is None:
+            return new_spec == current_spec
+
+        # Handle dicts
+        if isinstance(new_spec, dict):
+            if not isinstance(current_spec, dict):
+                return False
+
+            # Check each key in new_spec exists in current_spec with same value
+            for key, new_value in new_spec.items():
+                if key not in current_spec:
+                    return False
+                if not self._specs_equal(new_value, current_spec[key]):
+                    return False
+
+            return True
+
+        # Handle lists
+        if isinstance(new_spec, list):
+            if not isinstance(current_spec, list):
+                return False
+            if len(new_spec) != len(current_spec):
+                return False
+
+            # Compare each element
+            for new_item, current_item in zip(new_spec, current_spec):
+                if not self._specs_equal(new_item, current_item):
+                    return False
+
+            return True
+
+        # Handle primitives
+        return new_spec == current_spec
 
     def _apply_custom_resource(
         self,
