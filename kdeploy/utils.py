@@ -9,11 +9,12 @@ from rich.theme import Theme
 
 # Custom theme for rich console
 custom_theme = Theme({
-    "info": "cyan",
-    "warning": "yellow",
-    "error": "bold red",
-    "success": "bold green",
-    "header": "bold magenta",
+    "arrow": "cyan",
+    "check": "green",
+    "cross": "red",
+    "info_icon": "blue",
+    "warn": "bright_yellow",
+    "header": "bold cyan",
     "dim": "dim",
 })
 
@@ -22,39 +23,58 @@ console = Console(theme=custom_theme)
 
 def print_header(text: str) -> None:
     """Print a header message."""
-    console.print(f"\n[header]{'=' * 50}[/header]")
-    console.print(f"[header]{text.center(50)}[/header]")
-    console.print(f"[header]{'=' * 50}[/header]\n")
+    from rich.text import Text
+    line = Text("=" * 50, style="header")
+    title = Text(text.center(50), style="header")
+    console.print()
+    console.print(line)
+    console.print(title)
+    console.print(line)
+    console.print()
 
 
 def print_step(text: str) -> None:
     """Print a step message."""
-    console.print(f"[info]→[/info] [bold]{text}[/bold]")
+    from rich.text import Text
+    arrow = Text("→ ", style="arrow")
+    msg = Text(text, style="bold")
+    console.print(arrow + msg)
 
 
 def print_success(text: str, indent: bool = True) -> None:
     """Print a success message."""
+    from rich.text import Text
     prefix = "  " if indent else ""
-    console.print(f"{prefix}[success]✓[/success] {text}", markup=False, highlight=False)
+    check = Text(f"{prefix}✓ ", style="check")
+    msg = Text(text)
+    console.print(check + msg, highlight=False)
 
 
 def print_error(text: str, indent: bool = True) -> None:
     """Print an error message."""
+    from rich.text import Text
     prefix = "  " if indent else ""
-    # Rich console outputs errors automatically, no need for stderr parameter
-    console.print(f"{prefix}[error]✗[/error] {text}", markup=False, highlight=False)
+    cross = Text(f"{prefix}✗ ", style="cross")
+    msg = Text(text)
+    console.print(cross + msg, highlight=False)
 
 
 def print_warning(text: str, indent: bool = True) -> None:
     """Print a warning message."""
+    from rich.text import Text
     prefix = "  " if indent else ""
-    console.print(f"{prefix}[warning]⚠[/warning] {text}", markup=False, highlight=False)
+    warn = Text(f"{prefix}⚠ ", style="warn")
+    msg = Text(text)
+    console.print(warn + msg, highlight=False)
 
 
 def print_info(text: str, indent: bool = True) -> None:
     """Print an info message."""
+    from rich.text import Text
     prefix = "  " if indent else ""
-    console.print(f"{prefix}[dim]{text}[/dim]", highlight=False)
+    icon = Text(f"{prefix}ℹ ", style="info_icon")
+    msg = Text(text, style="dim")
+    console.print(icon + msg, highlight=False)
 
 
 def find_ops_root(start_path: Optional[Path] = None) -> Optional[Path]:
