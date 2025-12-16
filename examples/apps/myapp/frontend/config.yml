@@ -1,0 +1,19 @@
+# Frontend component configuration
+
+resources:
+  test:
+    replicas: 2
+    cpu_request: "50m"
+    cpu_limit: "200m"
+    memory_request: "128Mi"
+    memory_limit: "256Mi"
+
+  prod:
+    replicas: 3
+    cpu_request: "100m"
+    cpu_limit: "500m"
+    memory_request: "256Mi"
+    memory_limit: "512Mi"
+
+# Frontend-specific configuration
+port: 3000
