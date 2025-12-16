@@ -1,0 +1,16 @@
+# Application configuration for myapp
+
+app:
+  name: myapp
+  version: "1.0.0"
+  description: "My Application"
+
+# Domain configuration per environment
+domain:
+  test: myapp-test.example.com
+  prod: myapp.example.com
+
+# Image configuration
+image:
+  registry: docker.io/myorg
+  pull_policy: Always
