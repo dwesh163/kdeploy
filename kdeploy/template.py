@@ -164,7 +164,10 @@ class TemplateEngine:
                     pass
 
         # Load secrets for the app
+        # Support both flat structure (ctfd: {...}) and nested (apps.ctfd: {...})
         app_secrets = self.config._secrets.get(app_name, {})
+        if not app_secrets and "apps" in self.config._secrets:
+            app_secrets = self.config._secrets.get("apps", {}).get(app_name, {})
         context["secret"] = app_secrets
 
         # Load global secrets
